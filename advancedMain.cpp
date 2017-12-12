@@ -1,9 +1,10 @@
 #include "stdio.h"
 #include "advancedCache.h"
-#include "memory.h"
+#include "advancedMemory.h"
 #include <fstream>  
 #include <sstream>  
 #include <string> 
+#include <memory.h>
 using namespace std;
 
 char *filename = NULL;
@@ -39,13 +40,13 @@ int main(int argc, char *argv[]) {
     l1.SetLower(&l2);
     l2.SetLower(&m);
 
-    CacheConfig l1_config = config_cache(32 * 1024, 8, 64, 0, 1, 6);
+    CacheConfig l1_config = config_cache(32 * 1024, 8, 64, 0, 1, 3);
     l1.SetConfig(l1_config);
-    CacheConfig l2_config = config_cache(256 * 1024, 8, 64, 0, 1,6);
+    CacheConfig l2_config = config_cache(256 * 1024, 8, 64, 0, 1, 3);
     l2.SetConfig(l2_config);
     
     StorageStats s;
-    s.access_time = 0;
+    memset(&s, 0, sizeof(s));
     m.SetStats(s);
     l1.SetStats(s);
     l2.SetStats(s);
@@ -81,13 +82,15 @@ int main(int argc, char *argv[]) {
 
     Simulation(l1_total_cnt, l1_total_hit, l1_success_cnt, l1);
 
-    StorageStats l1_stats, l2_stats;
+    StorageStats l1_stats, l2_stats, m_stats;
     l1.GetStats(l1_stats);
     l2.GetStats(l2_stats);
-    printf("total_cnt: %d, total_hit: %d", l1_total_cnt, l1_total_hit);
-    printf("cache1: access counter: %d, total miss: %d, miss rate: %.2f \n", l1_stats.access_counter, l1_stats.miss_num, double(l1_stats.miss_num)/double(l1_stats.access_counter));
-    printf("cache2: access counter: %d, total miss: %d, miss rate: %.2f \n", l2_stats.access_counter, l2_stats.miss_num, double(l2_stats.miss_num)/double(l2_stats.access_counter));
+    m.GetStats(m_stats);
 
+    printf("cache1: access counter: %d, total miss: %d, miss rate: %.3f, access_time: %d\n", l1_stats.access_counter, l1_stats.miss_num, double(l1_stats.miss_num)/double(l1_stats.access_counter), l1_stats.access_time);
+    printf("cache2: access counter: %d, total miss: %d, miss rate: %.3f, access_time: %d\n", l2_stats.access_counter, l2_stats.miss_num, double(l2_stats.miss_num)/double(l2_stats.access_counter),l2_stats.access_time);
+    printf("memory: access counter: %d, access_time: %d\n", m_stats.access_counter, m_stats.access_time);
+    printf("total latency: %d\n", l1_stats.access_time + l2_stats.access_time + m_stats.access_time);
     
     //printf("\n");
     //printf("Cache Simulation finished.\n");
@@ -112,7 +115,7 @@ void Simulation(unsigned int & total_cnt, unsigned int & total_hit, unsigned int
     char request_type;
     unsigned long request_addr;
     while (fscanf(trace, "%c\t0x%x\n", &request_type, &request_addr) != EOF) {
-        //printf("%c\t0x%x\n",request_type, request_addr);
+        printf("%c\t0x%x\n",request_type, request_addr);
         total_cnt++;
         char content[64];
         int read = 1;
@@ -126,7 +129,7 @@ void Simulation(unsigned int & total_cnt, unsigned int & total_hit, unsigned int
         }
         int hit = 0, time = 0;
         int bytes = 1; // TODO
-        l1.HandleRequest(request_addr, bytes, read, content, hit, time);
+        l1.HandleRequest(request_addr, bytes, read, content, hit, time, 1);
         total_hit += hit;
         success_cnt++;
     }
